@@ -1,5 +1,6 @@
 from ai_agents.base_agent import BaseAgent
 from ai_agents.langgraph.flow import get_flow
+from ai_agents.langgraph.states.message_graph import MessageGraphState
 from fastapi import HTTPException
 from langchain_core.messages import (
   AIMessage,
@@ -8,7 +9,6 @@ from langchain_core.messages import (
   SystemMessage,
   ToolMessage,
 )
-from langgraph.graph import MessagesState
 from modules.chat.dto.chat_dto import ChatHistoryDTO
 from server_config.logger import Logger
 
@@ -53,7 +53,7 @@ def process_chat_with_graph(chat_list: list[ChatHistoryDTO]) -> AIMessage:
   logger = Logger(__name__)
   messages = _convert_chat_list(chat_list)
   flow = get_flow().compile()
-  state = MessagesState(messages=messages)
+  state = MessageGraphState(messages=messages)
 
   res = flow.invoke(state)
   res_messages = res.get('messages')
