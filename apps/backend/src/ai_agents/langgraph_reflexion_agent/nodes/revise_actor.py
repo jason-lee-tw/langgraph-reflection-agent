@@ -62,8 +62,5 @@ class ReviseActorNode(BaseAgentNode[ReflexionAgentState]):
         'messages': messages,
       }
     )
-
-    logger.debug(f'model_res: {model_res}')
-    # parsed_res = self._output_message_type(content=[model_res.model_dump_json()])
     logger.debug('✅ Completed node...')
     return ReflexionAgentState(messages=[model_res])
