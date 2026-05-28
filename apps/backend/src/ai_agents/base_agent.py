@@ -6,7 +6,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_anthropic.output_parsers import ToolsOutputParser
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import BaseGenerationOutputParser
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 
 class BaseAgent:
@@ -14,8 +14,15 @@ class BaseAgent:
 
   def __init__(self):
     api_key = os.getenv('ANTHROPIC_API_KEY')
+    if not api_key:
+      raise ValueError(f'Invalid ANTHROPIC_API_KEY: {api_key}')
+
     self.__model = ChatAnthropic(
-      api_key=api_key, temperature=0, model_name='claude-sonnet-4-6'
+      api_key=SecretStr(api_key),
+      temperature=0,
+      model_name='claude-sonnet-4-6',
+      timeout=None,
+      stop=None,
     )
 
   def chat(self, messages: list[BaseMessage]) -> AIMessage:
@@ -28,7 +35,7 @@ class BaseAgent:
 
   @staticmethod
   def get_parser(
-    schemas: list[BaseModel], return_single: bool = False
+    schemas: list[type[BaseModel]], return_single: bool = False
   ) -> BaseGenerationOutputParser:
     if len(schemas) == 0:
       raise ValueError('Schemas cannot be empty list.')
