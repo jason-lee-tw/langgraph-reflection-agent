@@ -1,14 +1,19 @@
 from abc import ABC, abstractmethod
+from typing import TypedDict
 
 from ai_agents.langgraph.states.message_graph import MessageGraphState
 from langchain.chat_models import BaseChatModel
-from langchain.messages import AIMessage, HumanMessage
+from langchain.messages import AIMessage, AnyMessage, HumanMessage
 from langchain_core.messages import BaseMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableSerializable
 
 
-class BaseNode[State = MessageGraphState](ABC):
+class BaseState(TypedDict):
+  messages: list[BaseMessage]
+
+
+class BaseNode[State: BaseState = MessageGraphState](ABC):
   def __init__(self):
     super().__init__()
 
@@ -16,7 +21,7 @@ class BaseNode[State = MessageGraphState](ABC):
   def execute_node(self, state: State) -> State: ...
 
 
-class BaseAgentNode[State = MessageGraphState](ABC):
+class BaseAgentNode[State: BaseState = MessageGraphState](ABC):
   _model: BaseChatModel
   _prompt_template: ChatPromptTemplate
   _output_message_type: type[BaseMessage]
@@ -33,9 +38,9 @@ class BaseAgentNode[State = MessageGraphState](ABC):
     self._output_message_type = output_message_type
 
   @abstractmethod
-  def _get_execution_chain(self) -> RunnableSerializable[dict, AIMessage]: ...
+  def _get_execution_chain(self) -> RunnableSerializable[dict, AnyMessage]: ...
 
-  def _get_message_from_state(self, state: State) -> State:
+  def _get_message_from_state(self, state: State) -> list[BaseMessage]:
     messages = [message for message in state.get('messages', [])]
 
     if isinstance(messages[-1], AIMessage):
@@ -44,7 +49,7 @@ class BaseAgentNode[State = MessageGraphState](ABC):
 
     return messages
 
-  def execute_node(self, state: State) -> State:
+  def execute_node(self, state: State) -> BaseState:
     messages = self._get_message_from_state(state)
 
     model_response = self._get_execution_chain().invoke(
@@ -53,4 +58,4 @@ class BaseAgentNode[State = MessageGraphState](ABC):
       }
     )
     parsed_response = self._output_message_type(model_response.content)
-    return State(messages=[parsed_response])
+    return {'messages': [parsed_response]}

@@ -34,13 +34,13 @@ class BaseAgent:
     return self.__model
 
   @staticmethod
-  def get_parser(
-    schemas: list[type[BaseModel]], return_single: bool = False
-  ) -> BaseGenerationOutputParser:
+  def get_parser[Schema = BaseModel](
+    schemas: list[type[Schema]], return_single: bool = False
+  ) -> BaseGenerationOutputParser[Schema]:
     if len(schemas) == 0:
       raise ValueError('Schemas cannot be empty list.')
 
     return ToolsOutputParser(
-      pydantic_schemas=schemas,
+      pydantic_schemas=schemas,  # type: ignore
       first_tool_only=return_single,
     )
