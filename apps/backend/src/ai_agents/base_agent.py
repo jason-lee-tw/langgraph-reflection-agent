@@ -3,7 +3,10 @@ import os
 from langchain.chat_models import BaseChatModel
 from langchain.messages import AIMessage
 from langchain_anthropic import ChatAnthropic
+from langchain_anthropic.output_parsers import ToolsOutputParser
 from langchain_core.messages import BaseMessage
+from langchain_core.output_parsers import BaseGenerationOutputParser
+from pydantic import BaseModel
 
 
 class BaseAgent:
@@ -22,3 +25,15 @@ class BaseAgent:
 
   def get_model(self) -> BaseChatModel:
     return self.__model
+
+  @staticmethod
+  def get_parser(
+    schemas: list[BaseModel], return_single: bool = False
+  ) -> BaseGenerationOutputParser:
+    if len(schemas) == 0:
+      raise ValueError('Schemas cannot be empty list.')
+
+    return ToolsOutputParser(
+      pydantic_schemas=schemas,
+      first_tool_only=return_single,
+    )

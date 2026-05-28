@@ -8,24 +8,24 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableSerializable
 
 
-class BaseNode(ABC):
+class BaseNode[State = MessageGraphState](ABC):
   def __init__(self):
     super().__init__()
 
   @abstractmethod
-  def execute_node(self, state: MessageGraphState) -> MessageGraphState: ...
+  def execute_node(self, state: State) -> State: ...
 
 
-class BaseAgentNode(ABC):
+class BaseAgentNode[State = MessageGraphState](ABC):
   _model: BaseChatModel
   _prompt_template: ChatPromptTemplate
-  _output_message_type: type[BaseMessage] = AIMessage
+  _output_message_type: type[BaseMessage]
 
   def __init__(
     self,
     model: BaseChatModel,
     prompt_template: ChatPromptTemplate,
-    output_message_type: type[BaseMessage],
+    output_message_type: type[BaseMessage] = AIMessage,
   ):
     super().__init__()
     self._model = model
@@ -35,12 +35,17 @@ class BaseAgentNode(ABC):
   @abstractmethod
   def _get_execution_chain(self) -> RunnableSerializable[dict, AIMessage]: ...
 
-  def execute_node(self, state: MessageGraphState) -> MessageGraphState:
+  def _get_message_from_state(self, state: State) -> State:
     messages = [message for message in state.get('messages', [])]
 
     if isinstance(messages[-1], AIMessage):
       original_message = messages[-1]
       messages[-1] = HumanMessage(original_message.content)
+
+    return messages
+
+  def execute_node(self, state: State) -> State:
+    messages = self._get_message_from_state(state)
 
     model_response = self._get_execution_chain().invoke(
       {
@@ -48,4 +53,4 @@ class BaseAgentNode(ABC):
       }
     )
     parsed_response = self._output_message_type(model_response.content)
-    return MessageGraphState(messages=[parsed_response])
+    return State(messages=[parsed_response])

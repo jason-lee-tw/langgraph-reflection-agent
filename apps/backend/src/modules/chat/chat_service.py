@@ -1,6 +1,7 @@
 from ai_agents.base_agent import BaseAgent
 from ai_agents.langgraph.flow import get_flow
 from ai_agents.langgraph.states.message_graph import MessageGraphState
+from ai_agents.langgraph_reflexion_agent.flow import get_flow as get_reflexion_flow
 from fastapi import HTTPException
 from langchain_core.messages import (
   AIMessage,
@@ -55,6 +56,29 @@ def process_chat_with_graph(chat_list: list[ChatHistoryDTO]) -> AIMessage:
   flow = get_flow().compile()
   state = MessageGraphState(messages=messages)
 
+  res = flow.invoke(state)
+  res_messages = res.get('messages')
+
+  if not isinstance(res_messages, list) or not len(res_messages):
+    logger.error(f'Invalid response message list.\nResponse:\n{res}')
+    raise ValueError('Missing response message from LLM model.')
+
+  latest_message = res_messages[-1]
+
+  if not isinstance(latest_message, AIMessage):
+    logger.error(f'Invalid last message. \nMessage:\n{latest_message}')
+    raise ValueError('Invalid latest message object.')
+
+  return latest_message
+
+
+def process_reflexion_chat(chat_list: list[ChatHistoryDTO]) -> AIMessage:
+  logger = Logger(__name__)
+  messages = _convert_chat_list(chat_list)
+  flow = get_reflexion_flow().compile()
+  state = MessageGraphState(messages=messages)
+
+  logger.log('Start triggering reflexion flow.')
   res = flow.invoke(state)
   res_messages = res.get('messages')
 
