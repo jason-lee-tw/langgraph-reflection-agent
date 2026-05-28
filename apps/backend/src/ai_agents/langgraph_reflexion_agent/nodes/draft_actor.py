@@ -9,11 +9,12 @@ from ai_agents.langgraph_reflexion_agent.schemas.answer_question import AnswerQu
 from ai_agents.langgraph_reflexion_agent.states.reflexion_agent_state import (
   ReflexionAgentState,
 )
-from langchain.messages import AIMessage
+from langchain.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableSerializable
+from server_config.logger import Logger
 
 
-class ReflexionActorNode(BaseAgentNode[ReflexionAgentState]):
+class DraftActorNode(BaseAgentNode[ReflexionAgentState]):
   def __init__(self):
     model = BaseAgent().get_model()
     output_message_type = AIMessage
@@ -27,9 +28,7 @@ class ReflexionActorNode(BaseAgentNode[ReflexionAgentState]):
       output_message_type=output_message_type,
     )
 
-  def _get_execution_chain(self) -> RunnableSerializable[dict, AnswerQuestion]:
-    parser = BaseAgent.get_parser(schemas=[AnswerQuestion], return_single=True)
-
+  def _get_execution_chain(self) -> RunnableSerializable[dict, AIMessage | ToolMessage]:
     actor_prompt_template = self._prompt_template.partial(
       first_instruction='Provide a deailed answer with max 250 words.',
     )
@@ -39,9 +38,12 @@ class ReflexionActorNode(BaseAgentNode[ReflexionAgentState]):
       strict=True,
     )
 
-    return actor_prompt_template | model | parser
+    return actor_prompt_template | model
 
   def execute_node(self, state):
+    logger = Logger(DraftActorNode.__name__)
+    logger.debug('🔄 Executing node...')
+
     messages = self._get_message_from_state(state)
 
     model_res = self._get_execution_chain().invoke(
@@ -49,9 +51,6 @@ class ReflexionActorNode(BaseAgentNode[ReflexionAgentState]):
         'messages': messages,
       }
     )
-    model_res_json = {
-      'type': 'AnswerQuestion',
-      'response': model_res.model_dump_json(),
-    }
-    parsed_res = self._output_message_type(content=[model_res_json])
-    return ReflexionAgentState(messages=[parsed_res])
+
+    logger.debug('✅ Completed node')
+    return ReflexionAgentState(messages=[model_res])
